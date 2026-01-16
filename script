@@ -1,6 +1,6 @@
 repeat task.wait() until game:IsLoaded()
 
--- ================= HÀM HỖ TRỢ & CONFIG (GIỮ NGUYÊN) =================
+-- ================= HÀM HỖ TRỢ & CONFIG =================
 local function GetRequest()
     local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
     return req
@@ -47,7 +47,7 @@ local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
 local Player = Players.LocalPlayer
 
--- ================= AUTO REJOIN (NEW) =================
+-- ================= AUTO REJOIN =================
 task.spawn(function()
     GuiService.ErrorMessageChanged:Connect(function()
         local msg = GuiService:GetErrorMessage()
@@ -198,7 +198,45 @@ local function ActivateHaki()
 end
 Player.CharacterAdded:Connect(ActivateHaki)
 
--- ================= LOGIC FARM (FIXED NO CHARACTER ERROR) =================
+-- ================= LOGIC SERVER HOP (FIX NGƯNG HOP) =================
+local function ServerHop()
+    StatusLabel.Text = "🌐 SCANNING SERVERS..."
+    local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
+    local success, result = pcall(function() return game:HttpGet(url) end)
+    
+    if success then
+        local data = HttpService:JSONDecode(result)
+        if data and data.data then
+            local serverList = {}
+            for _, s in pairs(data.data) do table.insert(serverList, s) end
+            
+            -- Xáo trộn server để không kẹt vào server cũ
+            for i = #serverList, 2, -1 do
+                local j = math.random(i)
+                serverList[i], serverList[j] = serverList[j], serverList[i]
+            end
+
+            for _, server in pairs(serverList) do
+                if server.playing >= 7 and server.playing <= 11 and server.id ~= game.JobId then
+                    StatusLabel.Text = "🚀 HOPPING: " .. server.playing .. " PLRS"
+                    local hopSuccess = pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Player) end)
+                    if hopSuccess then return end
+                end
+            end
+        end
+    end
+    
+    -- Fallback: Nếu không tìm thấy server 7-11 người, nhảy đại vào bất kỳ server nào để tiếp tục
+    task.wait(1)
+    StatusLabel.Text = "⚠️ FALLBACK HOPPING..."
+    pcall(function()
+        local fbUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=10"
+        local fbData = HttpService:JSONDecode(game:HttpGet(fbUrl)).data
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, fbData[math.random(#fbData)].id, Player)
+    end)
+end
+
+-- ================= LOGIC FARM =================
 local CurrentWeaponIdx = 1; local WeaponTypes = {"Sword", "Combat"}; local NoMonsterTimer = 0
 
 task.spawn(function()
@@ -206,7 +244,6 @@ task.spawn(function()
         task.wait(0.12)
         if Config.FarmSeaEvent then
             local char = Player.Character
-            -- Điều kiện kiểm tra nhân vật cực kỳ khắt khe để tránh spam lỗi Console
             if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
                 local monster = (function()
                     local folders = { workspace:FindFirstChild("SeaMonster"), workspace:FindFirstChild("Monster") and workspace.Monster:FindFirstChild("Boss") }
@@ -259,31 +296,17 @@ task.spawn(function()
                         SendWebhook("💀 ELIMINATED", "Xong boss: " .. LastTargetName, 3447003)
                         LastTargetName = ""; ToggleMinimize(false)
                     end
-                    StatusLabel.Text = "📡 " .. math.floor(10 - NoMonsterTimer) .. "s"
+                    StatusLabel.Text = "📡 SCANNING: " .. math.floor(15 - NoMonsterTimer) .. "s"
                     if Config.AutoServerHop then
                         NoMonsterTimer = NoMonsterTimer + 0.12
-                        if NoMonsterTimer >= 10 then 
-                            local function ServerHop()
-                                -- Logic Hop Server mới nhất (7-11 người)
-                                local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
-                                local success, result = pcall(function() return game:HttpGet(url) end)
-                                if success then
-                                    local servers = HttpService:JSONDecode(result).data
-                                    for _, server in pairs(servers) do
-                                        if server.playing >= 7 and server.playing <= 11 and server.id ~= game.JobId then
-                                            TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Player)
-                                            return
-                                        end
-                                    end
-                                end
-                            end
-                            ServerHop(); NoMonsterTimer = 0 
+                        if NoMonsterTimer >= 15 then -- Đợi 15s không có boss sẽ hop
+                            ServerHop()
+                            NoMonsterTimer = 0 
                         end
                     end
                 end
             else
-                -- Khi nhân vật chưa load, chỉ hiện thông báo chờ thay vì chạy code lỗi
-                StatusLabel.Text = "⌛ WAITING FOR CHARACTER..."
+                StatusLabel.Text = "⌛ WAITING FOR CHAR..."
                 if IsMinimized then Title.Text = "📡 WAITING..." end
             end
         end
