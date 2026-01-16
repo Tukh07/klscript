@@ -266,7 +266,7 @@ task.spawn(function()
                                 if success then
                                     local servers = HttpService:JSONDecode(result).data
                                     for _, server in pairs(servers) do
-                                        if server.playing >= 7 and server.playing <= 12 and server.id ~= game.JobId then
+                                        if server.playing >= 7 and server.playing <= 11 and server.id ~= game.JobId then
                                             TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Player)
                                             return
                                         end
