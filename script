@@ -190,12 +190,15 @@ TeleBtn.MouseButton1Click:Connect(function() if JobInput.Text ~= "" then Telepor
 -- ================= LOGIC AUTO ARMAMENT =================
 local function ActivateHaki()
     task.wait(2)
-    if Config.AutoArm then pcall(function() RS.Chest.Remotes.Events.Armament:FireServer() end) end
-    if Config.AutoKen then pcall(function() RS.Chest.Remotes.Functions.KenEvent:InvokeServer() end) end
+    local char = Player.Character
+    if char and char:FindFirstChild("Humanoid") then
+        if Config.AutoArm then pcall(function() RS.Chest.Remotes.Events.Armament:FireServer() end) end
+        if Config.AutoKen then pcall(function() RS.Chest.Remotes.Functions.KenEvent:InvokeServer() end) end
+    end
 end
 Player.CharacterAdded:Connect(ActivateHaki)
 
--- ================= LOGIC FARM =================
+-- ================= LOGIC FARM (FIXED NO CHARACTER ERROR) =================
 local CurrentWeaponIdx = 1; local WeaponTypes = {"Sword", "Combat"}; local NoMonsterTimer = 0
 
 task.spawn(function()
@@ -203,6 +206,7 @@ task.spawn(function()
         task.wait(0.12)
         if Config.FarmSeaEvent then
             local char = Player.Character
+            -- Điều kiện kiểm tra nhân vật cực kỳ khắt khe để tránh spam lỗi Console
             if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
                 local monster = (function()
                     local folders = { workspace:FindFirstChild("SeaMonster"), workspace:FindFirstChild("Monster") and workspace.Monster:FindFirstChild("Boss") }
@@ -260,7 +264,7 @@ task.spawn(function()
                         NoMonsterTimer = NoMonsterTimer + 0.12
                         if NoMonsterTimer >= 10 then 
                             local function ServerHop()
-                                -- QUY TẮC: Tìm server có từ 7-10 người (Thường là server đã chạy được 1.5 - 2 tiếng)
+                                -- Logic Hop Server mới nhất (7-11 người)
                                 local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
                                 local success, result = pcall(function() return game:HttpGet(url) end)
                                 if success then
@@ -277,6 +281,10 @@ task.spawn(function()
                         end
                     end
                 end
+            else
+                -- Khi nhân vật chưa load, chỉ hiện thông báo chờ thay vì chạy code lỗi
+                StatusLabel.Text = "⌛ WAITING FOR CHARACTER..."
+                if IsMinimized then Title.Text = "📡 WAITING..." end
             end
         end
     end
