@@ -1,6 +1,6 @@
 repeat task.wait() until game:IsLoaded()
 
--- ================= HÀM HỖ TRỢ & CONFIG (GIỮ NGUYÊN 100%) =================
+-- ================= HÀM HỖ TRỢ & CONFIG (GIỮ NGUYÊN) =================
 local function GetRequest()
     local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
     return req
@@ -37,17 +37,6 @@ local Config = {
 local function SaveConfig() pcall(function() writefile(ConfigFile, game:GetService("HttpService"):JSONEncode(Config)) end) end
 pcall(function() if isfile(ConfigFile) then local data = game:GetService("HttpService"):JSONDecode(readfile(ConfigFile)) for k,v in pairs(data) do Config[k] = v end end end)
 
-task.spawn(function()
-    while task.wait(5) do
-        local success, targetID = pcall(function() return game:HttpGet(RemoteCommandURL .. "?t=" .. tick()) end)
-        if success and targetID ~= "" and targetID:len() > 10 and targetID ~= game.JobId and targetID ~= LastRemoteJobID then
-            LastRemoteJobID = targetID
-            SendWebhook("📱 REMOTE COMMAND", "Nhảy server theo lệnh...", 16776960)
-            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, targetID:gsub("%s+", ""), game.Players.LocalPlayer)
-        end
-    end
-end)
-
 -- ================= SERVICES =================
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -55,16 +44,26 @@ local VIM = game:GetService("VirtualInputManager")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
 local Player = Players.LocalPlayer
 
--- ================= BLACK SCREEN & LOW GRAPHICS (GIỮ NGUYÊN) =================
+-- ================= AUTO REJOIN (NEW) =================
+task.spawn(function()
+    GuiService.ErrorMessageChanged:Connect(function()
+        local msg = GuiService:GetErrorMessage()
+        if msg ~= "" then
+            task.wait(5)
+            TeleportService:Teleport(game.PlaceId, Player)
+        end
+    end)
+end)
+
+-- ================= BLACK SCREEN & LOW GRAPHICS =================
 local BS_Gui = Player.PlayerGui:FindFirstChild("BlackScreen_Sys") or Instance.new("ScreenGui", Player.PlayerGui)
 BS_Gui.Name = "BlackScreen_Sys"; BS_Gui.ResetOnSpawn = false
 local BlackFrame = BS_Gui:FindFirstChild("BlackFrame") or Instance.new("Frame", BS_Gui)
 BlackFrame.Name = "BlackFrame"; BlackFrame.Size = UDim2.new(1, 0, 1, 0); BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0); BlackFrame.ZIndex = -1
-
 local function UpdateBlackScreen() BlackFrame.Visible = Config.BlackScreen; BlackFrame.BackgroundTransparency = Config.BlackScreen and 0.5 or 1 end
-
 local function ApplyLowGraphics()
     if not Config.LowGraphics then return end
     pcall(function()
@@ -78,35 +77,20 @@ local function ApplyLowGraphics()
 end
 task.spawn(ApplyLowGraphics)
 
--- ================= GUI NÂNG CẤP (CHỈ SỬA STATUS TO & ICON) =================
+-- ================= GUI SYSTEM =================
 local gui = Instance.new("ScreenGui", Player.PlayerGui)
 gui.Name = "SeaFarm_Titan_Edition"; gui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", gui)
 MainFrame.Size = UDim2.fromScale(0.25, 0.65); MainFrame.Position = UDim2.fromScale(0.05, 0.2)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
-MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.BorderSizePixel = 0
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18); MainFrame.Active = true; MainFrame.Draggable = true; MainFrame.BorderSizePixel = 0
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 
 local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Thickness = 2; UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 local UIGradient = Instance.new("UIGradient", UIStroke)
-UIGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)), ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255,255,0)),
-    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0,255,0)), ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0,255,255)),
-    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0,0,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,255))
-}
+UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,255))}
 task.spawn(function() while task.wait() do UIGradient.Rotation = UIGradient.Rotation + 1 end end)
-
-local IsMinimized = false
-local MinBtn = Instance.new("TextButton", MainFrame)
-MinBtn.Size = UDim2.new(0, 30, 0, 30); MinBtn.Position = UDim2.new(1, -35, 0.5, -15)
-MinBtn.Text = "-"; MinBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60); MinBtn.TextColor3 = Color3.new(1, 1, 1)
-MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 18
-Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
-
-local ContentFrame = Instance.new("Frame", MainFrame)
-ContentFrame.Size = UDim2.fromScale(1, 0.85); ContentFrame.Position = UDim2.fromScale(0, 0.15); ContentFrame.BackgroundTransparency = 1
 
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(0.8, 0, 0.15, 0); Title.Position = UDim2.new(0, 15, 0, 0)
@@ -114,71 +98,104 @@ Title.Text = "SEA EVENT <font color='#00FFFF'>HOME MADE</font>"; Title.RichText 
 Title.TextColor3 = Color3.new(1, 1, 1); Title.BackgroundTransparency = 1
 Title.TextScaled = true; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.Font = Enum.Font.GothamBlack
 
+local IsMinimized = false
+local MinBtn = Instance.new("TextButton", MainFrame)
+MinBtn.Size = UDim2.new(0, 30, 0, 30); MinBtn.Position = UDim2.new(1, -35, 0.5, -15)
+MinBtn.Text = "-"; MinBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60); MinBtn.TextColor3 = Color3.new(1, 1, 1); MinBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", MinBtn)
+
+local ContentGroup = Instance.new("Frame", MainFrame)
+ContentGroup.Size = UDim2.new(1, 0, 0.85, 0); ContentGroup.Position = UDim2.new(0, 0, 0.15, 0); ContentGroup.BackgroundTransparency = 1
+
 local function ToggleMinimize(state)
     IsMinimized = state
     MainFrame:TweenSize(IsMinimized and UDim2.fromScale(0.25, 0.06) or UDim2.fromScale(0.25, 0.65), "Out", "Back", 0.4, true)
-    ContentFrame.Visible = not IsMinimized
+    ContentGroup.Visible = not IsMinimized
     MinBtn.Text = IsMinimized and "+" or "-"
     MinBtn.BackgroundColor3 = IsMinimized and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(255, 60, 60)
     MinBtn.Position = IsMinimized and UDim2.new(1, -35, 0.5, -15) or UDim2.new(1, -35, 0, 5)
     Title.Size = IsMinimized and UDim2.new(0.8, 0, 1, 0) or UDim2.new(0.8, 0, 0.15, 0)
-    
-    if not IsMinimized then Title.Text = "SEA EVENT <font color='#00FFFF'>HOME MADE</font>"
-    elseif LastTargetName ~= "" then Title.Text = "🎯 " .. LastTargetName end
+    if not IsMinimized then 
+        Title.Text = "SEA EVENT <font color='#00FFFF'>HOME MADE</font>" 
+    elseif LastTargetName ~= "" then 
+        Title.Text = "🎯 <font color='#FFA500'>" .. LastTargetName:upper() .. "</font>"
+    else
+        Title.Text = "📡 SEARCHING..."
+    end
 end
 MinBtn.MouseButton1Click:Connect(function() ToggleMinimize(not IsMinimized) end)
 
--- PHẦN STATUS MỚI (TO HƠN)
-local StatusLabel = Instance.new("TextLabel", ContentFrame)
-StatusLabel.Size = UDim2.fromScale(0.9, 0.15); StatusLabel.Position = UDim2.fromScale(0.05, 0)
-StatusLabel.Text = "💤 IDLE"; StatusLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 25); StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-StatusLabel.Font = Enum.Font.GothamBlack; StatusLabel.TextScaled = true; StatusLabel.RichText = true; StatusLabel.BorderSizePixel = 0
-Instance.new("UICorner", StatusLabel).CornerRadius = UDim.new(0, 8)
-local StatusStroke = Instance.new("UIStroke", StatusLabel); StatusStroke.Color = Color3.fromRGB(50, 50, 60)
+-- Tab System
+local TabHolder = Instance.new("Frame", ContentGroup)
+TabHolder.Size = UDim2.new(1, -20, 0, 25); TabHolder.Position = UDim2.new(0, 10, 0, 0); TabHolder.BackgroundTransparency = 1
 
-local function CreateToggle(text, pos, config_key)
-    local btn = Instance.new("TextButton", ContentFrame)
-    btn.Size = UDim2.fromScale(0.9, 0.075); btn.Position = UDim2.fromScale(0.05, pos)
+local SeaTabBtn = Instance.new("TextButton", TabHolder)
+SeaTabBtn.Size = UDim2.new(0.48, 0, 1, 0); SeaTabBtn.Text = "SEA EVENT"; SeaTabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40); SeaTabBtn.TextColor3 = Color3.new(1,1,1); SeaTabBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", SeaTabBtn)
+
+local SettingTabBtn = Instance.new("TextButton", TabHolder)
+SettingTabBtn.Size = UDim2.new(0.48, 0, 1, 0); SettingTabBtn.Position = UDim2.new(0.52, 0, 0, 0); SettingTabBtn.Text = "SETTINGS"; SettingTabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25); SettingTabBtn.TextColor3 = Color3.fromRGB(150, 150, 150); SettingTabBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", SettingTabBtn)
+
+local SeaContainer = Instance.new("ScrollingFrame", ContentGroup)
+SeaContainer.Size = UDim2.new(1, 0, 0.9, 0); SeaContainer.Position = UDim2.new(0, 0, 0.1, 0); SeaContainer.BackgroundTransparency = 1; SeaContainer.ScrollBarThickness = 0
+
+local SettingContainer = Instance.new("ScrollingFrame", ContentGroup)
+SettingContainer.Size = UDim2.new(1, 0, 0.9, 0); SettingContainer.Position = UDim2.new(0, 0, 0.1, 0); SettingContainer.BackgroundTransparency = 1; SettingContainer.Visible = false; SettingContainer.ScrollBarThickness = 0
+
+SeaTabBtn.MouseButton1Click:Connect(function() SeaContainer.Visible = true; SettingContainer.Visible = false; SeaTabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40); SettingTabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25) end)
+SettingTabBtn.MouseButton1Click:Connect(function() SeaContainer.Visible = false; SettingContainer.Visible = true; SeaTabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25); SettingTabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40) end)
+
+local function CreateToggle(text, pos, config_key, parent)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.fromScale(0.9, 0.08); btn.Position = UDim2.fromScale(0.05, pos)
     local isOn = Config[config_key]
     btn.BackgroundColor3 = isOn and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(35, 35, 45)
     btn.Text = text .. ": " .. (isOn and "ON" or "OFF")
     btn.TextColor3 = isOn and Color3.new(1,1,1) or Color3.fromRGB(180,180,180)
-    btn.Font = Enum.Font.GothamMedium; btn.TextSize = 14; btn.AutoButtonColor = false
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.Font = Enum.Font.GothamMedium; btn.TextSize = 13; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     local Stroke = Instance.new("UIStroke", btn); Stroke.Color = isOn and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(60,60,60)
-    
     btn.MouseButton1Click:Connect(function()
-        Config[config_key] = not Config[config_key]
-        local newState = Config[config_key]
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = newState and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(35, 35, 45), TextColor3 = newState and Color3.new(1,1,1) or Color3.fromRGB(180,180,180)}):Play()
-        TweenService:Create(Stroke, TweenInfo.new(0.2), {Color = newState and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(60,60,60)}):Play()
+        Config[config_key] = not Config[config_key]; local newState = Config[config_key]; SaveConfig()
+        btn.BackgroundColor3 = newState and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(35, 35, 45)
+        btn.TextColor3 = newState and Color3.new(1,1,1) or Color3.fromRGB(180,180,180)
+        Stroke.Color = newState and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(60,60,60)
         btn.Text = text .. ": " .. (newState and "ON" or "OFF")
-        SaveConfig()
         if config_key == "LowGraphics" then ApplyLowGraphics() end
         if config_key == "BlackScreen" then UpdateBlackScreen() end
     end)
 end
 
-CreateToggle("Auto Skill", 0.17, "AutoSkill")
-CreateToggle("Farm Sea Event", 0.26, "FarmSeaEvent")
-CreateToggle("Auto Armament", 0.35, "AutoArm")
-CreateToggle("Auto Ken", 0.44, "AutoKen")
-CreateToggle("Auto Server Hop", 0.53, "AutoServerHop")
-CreateToggle("Giảm Lag (Low)", 0.62, "LowGraphics")
-CreateToggle("Black Screen", 0.71, "BlackScreen")
+-- TAB: SEA EVENT
+local StatusLabel = Instance.new("TextLabel", SeaContainer)
+StatusLabel.Size = UDim2.fromScale(0.9, 0.15); StatusLabel.Position = UDim2.fromScale(0.05, 0.02)
+StatusLabel.Text = "💤 IDLE"; StatusLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 25); StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+StatusLabel.Font = Enum.Font.GothamBlack; StatusLabel.TextScaled = true; StatusLabel.RichText = true; Instance.new("UICorner", StatusLabel)
 
-local JobInput = Instance.new("TextBox", ContentFrame)
-JobInput.Size = UDim2.fromScale(0.9, 0.08); JobInput.Position = UDim2.fromScale(0.05, 0.82)
-JobInput.PlaceholderText = "Nhập JobID..."; JobInput.BackgroundColor3 = Color3.fromRGB(25, 25, 30); JobInput.TextColor3 = Color3.new(1, 1, 1)
-JobInput.Font = Enum.Font.Gotham; Instance.new("UICorner", JobInput).CornerRadius = UDim.new(0, 6)
+CreateToggle("Farm Sea Event", 0.19, "FarmSeaEvent", SeaContainer)
+CreateToggle("Auto Server Hop", 0.28, "AutoServerHop", SeaContainer)
+CreateToggle("Giảm Lag (Low)", 0.37, "LowGraphics", SeaContainer)
+CreateToggle("Black Screen", 0.46, "BlackScreen", SeaContainer)
 
-local TeleBtn = Instance.new("TextButton", ContentFrame)
-TeleBtn.Size = UDim2.fromScale(0.9, 0.08); TeleBtn.Position = UDim2.fromScale(0.05, 0.92)
-TeleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 220); TeleBtn.Text = "JOIN BẰNG ID"; TeleBtn.TextColor3 = Color3.new(1, 1, 1)
-TeleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", TeleBtn).CornerRadius = UDim.new(0, 6)
-TeleBtn.MouseButton1Click:Connect(function() if JobInput.Text ~= "" then game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, JobInput.Text, Player) end end)
+-- TAB: SETTINGS
+CreateToggle("Auto Skill", 0.02, "AutoSkill", SettingContainer)
+CreateToggle("Auto Armament", 0.11, "AutoArm", SettingContainer)
+CreateToggle("Auto Ken", 0.20, "AutoKen", SettingContainer)
 
--- ================= LOGIC FARM (GIỮ NGUYÊN 100% - CHỈ FIX STATUS DISPLAY) =================
+local JobInput = Instance.new("TextBox", SettingContainer)
+JobInput.Size = UDim2.fromScale(0.9, 0.08); JobInput.Position = UDim2.fromScale(0.05, 0.3)
+JobInput.PlaceholderText = "JobID..."; JobInput.BackgroundColor3 = Color3.fromRGB(25, 25, 30); JobInput.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", JobInput)
+
+local TeleBtn = Instance.new("TextButton", SettingContainer)
+TeleBtn.Size = UDim2.fromScale(0.9, 0.08); TeleBtn.Position = UDim2.fromScale(0.05, 0.4); TeleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 220); TeleBtn.Text = "JOIN BẰNG ID"; TeleBtn.TextColor3 = Color3.new(1, 1, 1); TeleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", TeleBtn)
+TeleBtn.MouseButton1Click:Connect(function() if JobInput.Text ~= "" then TeleportService:TeleportToPlaceInstance(game.PlaceId, JobInput.Text, Player) end end)
+
+-- ================= LOGIC AUTO ARMAMENT =================
+local function ActivateHaki()
+    task.wait(2)
+    if Config.AutoArm then pcall(function() RS.Chest.Remotes.Events.Armament:FireServer() end) end
+    if Config.AutoKen then pcall(function() RS.Chest.Remotes.Functions.KenEvent:InvokeServer() end) end
+end
+Player.CharacterAdded:Connect(ActivateHaki)
+
+-- ================= LOGIC FARM =================
 local CurrentWeaponIdx = 1; local WeaponTypes = {"Sword", "Combat"}; local NoMonsterTimer = 0
 
 task.spawn(function()
@@ -202,14 +219,11 @@ task.spawn(function()
                 if monster then
                     if LastTargetName ~= monster.Name then
                         LastTargetName = monster.Name
-                        SendWebhook("⚔️ TARGET DETECTED", "🔥 Tấn công: **" .. monster.Name .. "**", 16711680)
+                        SendWebhook("⚔️ TARGET", "🔥 **" .. monster.Name .. "**", 16711680)
                         ToggleMinimize(true)
                     end
-                    
-                    -- Cập nhật Text Icon & To
-                    if IsMinimized then Title.Text = "🎯 <font color='#FFA500'>" .. monster.Name .. "</font>" end
                     StatusLabel.Text = "⚔️ <font color='rgb(255, 50, 50)'>" .. monster.Name:upper() .. "</font>"
-                    
+                    if IsMinimized then Title.Text = "🎯 <font color='#FFA500'>" .. monster.Name:upper() .. "</font>" end
                     NoMonsterTimer = 0
                     char.HumanoidRootPart.CFrame = monster.HumanoidRootPart.CFrame * CFrame.new(0, 6, 8)
                     
@@ -238,25 +252,21 @@ task.spawn(function()
                     end
                 else
                     if LastTargetName ~= "" then
-                        SendWebhook("💀 TARGET ELIMINATED", "Xong boss: " .. LastTargetName, 3447003)
-                        LastTargetName = ""
-                        ToggleMinimize(false)
+                        SendWebhook("💀 ELIMINATED", "Xong boss: " .. LastTargetName, 3447003)
+                        LastTargetName = ""; ToggleMinimize(false)
                     end
-                    
-                    -- Cập nhật Searching Icon
                     StatusLabel.Text = "📡 " .. math.floor(10 - NoMonsterTimer) .. "s"
-                    StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-                    
                     if Config.AutoServerHop then
                         NoMonsterTimer = NoMonsterTimer + 0.12
                         if NoMonsterTimer >= 10 then 
                             local function ServerHop()
+                                -- QUY TẮC: Tìm server có từ 7-10 người (Thường là server đã chạy được 1.5 - 2 tiếng)
                                 local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
                                 local success, result = pcall(function() return game:HttpGet(url) end)
                                 if success then
                                     local servers = HttpService:JSONDecode(result).data
                                     for _, server in pairs(servers) do
-                                        if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                                        if server.playing >= 7 and server.playing <= 10 and server.id ~= game.JobId then
                                             TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Player)
                                             return
                                         end
@@ -272,16 +282,14 @@ task.spawn(function()
     end
 end)
 
-Player.CharacterAdded:Connect(function()
-    task.wait(1.5); pcall(function() RS.Chest.Remotes.Functions.EtcFunction:InvokeServer("EnterTheGame", {}) end)
-    if Config.LowGraphics then ApplyLowGraphics() end
-end)
-
+-- Remote Command & Anti Idle
 task.spawn(function()
-    pcall(function() RS.Chest.Remotes.Functions.EtcFunction:InvokeServer("EnterTheGame", {}) end)
-    while task.wait(3) do
-        if Config.FarmSeaEvent and Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character.Humanoid.Health > 0 then
-            pcall(function() if Config.AutoArm then RS.Chest.Remotes.Events.Armament:FireServer() end; if Config.AutoKen then RS.Chest.Remotes.Functions.KenEvent:InvokeServer() end end)
+    while task.wait(5) do
+        local success, targetID = pcall(function() return game:HttpGet(RemoteCommandURL .. "?t=" .. tick()) end)
+        if success and targetID ~= "" and targetID:len() > 10 and targetID ~= game.JobId and targetID ~= LastRemoteJobID then
+            LastRemoteJobID = targetID
+            SendWebhook("📱 REMOTE", "Nhảy server...", 16776960)
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetID:gsub("%s+", ""), Player)
         end
     end
 end)
@@ -292,3 +300,5 @@ task.spawn(function()
 end)
 
 if Config.BlackScreen then UpdateBlackScreen() end
+pcall(function() RS.Chest.Remotes.Functions.EtcFunction:InvokeServer("EnterTheGame", {}) end)
+ActivateHaki()
