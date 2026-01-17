@@ -1,9 +1,6 @@
 repeat task.wait() until game:IsLoaded()
 
--- ================= CẤU HÌNH TỌA ĐỘ =================
-local TargetPos = CFrame.new(2234.82, 363.26, -1202.24) -- Tọa độ bạn đã cho
-
--- ================= HÀM HỖ TRỢ & CONFIG =================
+-- ================= HÀM HỖ TRỢ & CONFIG (GIỮ NGUYÊN) =================
 local function GetRequest()
     local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
     return req
@@ -33,7 +30,8 @@ end
 local ConfigFile = "SeaFarm_Ultimate_Config.json"
 local Config = {
     AutoSkill = false, FarmSeaEvent = false, WeaponMode = "Sword",
-    AutoArm = true, AutoKen = true, AutoServerHop = false
+    AutoArm = true, AutoKen = true, LowGraphics = true,
+    AutoServerHop = false, BlackScreen = false
 }
 
 local function SaveConfig() pcall(function() writefile(ConfigFile, game:GetService("HttpService"):JSONEncode(Config)) end) end
@@ -49,7 +47,7 @@ local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
 local Player = Players.LocalPlayer
 
--- ================= AUTO REJOIN =================
+-- ================= AUTO REJOIN (NEW) =================
 task.spawn(function()
     GuiService.ErrorMessageChanged:Connect(function()
         local msg = GuiService:GetErrorMessage()
@@ -59,6 +57,25 @@ task.spawn(function()
         end
     end)
 end)
+
+-- ================= BLACK SCREEN & LOW GRAPHICS =================
+local BS_Gui = Player.PlayerGui:FindFirstChild("BlackScreen_Sys") or Instance.new("ScreenGui", Player.PlayerGui)
+BS_Gui.Name = "BlackScreen_Sys"; BS_Gui.ResetOnSpawn = false
+local BlackFrame = BS_Gui:FindFirstChild("BlackFrame") or Instance.new("Frame", BS_Gui)
+BlackFrame.Name = "BlackFrame"; BlackFrame.Size = UDim2.new(1, 0, 1, 0); BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0); BlackFrame.ZIndex = -1
+local function UpdateBlackScreen() BlackFrame.Visible = Config.BlackScreen; BlackFrame.BackgroundTransparency = Config.BlackScreen and 0.5 or 1 end
+local function ApplyLowGraphics()
+    if not Config.LowGraphics then return end
+    pcall(function()
+        game:GetService("Lighting").GlobalShadows = false
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("Part") or v:IsA("MeshPart") then v.Material = Enum.Material.SmoothPlastic
+            elseif v:IsA("Decal") or v:IsA("Texture") or v:IsA("ParticleEmitter") then v:Destroy() end
+        end
+    end)
+end
+task.spawn(ApplyLowGraphics)
 
 -- ================= GUI SYSTEM =================
 local gui = Instance.new("ScreenGui", Player.PlayerGui)
@@ -141,6 +158,8 @@ local function CreateToggle(text, pos, config_key, parent)
         btn.TextColor3 = newState and Color3.new(1,1,1) or Color3.fromRGB(180,180,180)
         Stroke.Color = newState and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(60,60,60)
         btn.Text = text .. ": " .. (newState and "ON" or "OFF")
+        if config_key == "LowGraphics" then ApplyLowGraphics() end
+        if config_key == "BlackScreen" then UpdateBlackScreen() end
     end)
 end
 
@@ -152,29 +171,20 @@ StatusLabel.Font = Enum.Font.GothamBlack; StatusLabel.TextScaled = true; StatusL
 
 CreateToggle("Farm Sea Event", 0.19, "FarmSeaEvent", SeaContainer)
 CreateToggle("Auto Server Hop", 0.28, "AutoServerHop", SeaContainer)
+CreateToggle("Giảm Lag (Low)", 0.37, "LowGraphics", SeaContainer)
+CreateToggle("Black Screen", 0.46, "BlackScreen", SeaContainer)
 
 -- TAB: SETTINGS
 CreateToggle("Auto Skill", 0.02, "AutoSkill", SettingContainer)
 CreateToggle("Auto Armament", 0.11, "AutoArm", SettingContainer)
 CreateToggle("Auto Ken", 0.20, "AutoKen", SettingContainer)
 
--- NÚT DỊCH CHUYỂN MỚI
-local PosTeleBtn = Instance.new("TextButton", SettingContainer)
-PosTeleBtn.Size = UDim2.fromScale(0.9, 0.08); PosTeleBtn.Position = UDim2.fromScale(0.05, 0.35); PosTeleBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
-PosTeleBtn.Text = "DỊCH CHUYỂN VỊ TRÍ"; PosTeleBtn.TextColor3 = Color3.new(1, 1, 1); PosTeleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", PosTeleBtn)
-
-PosTeleBtn.MouseButton1Click:Connect(function()
-    if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-        Player.Character.HumanoidRootPart.CFrame = TargetPos
-    end
-end)
-
 local JobInput = Instance.new("TextBox", SettingContainer)
-JobInput.Size = UDim2.fromScale(0.9, 0.08); JobInput.Position = UDim2.fromScale(0.05, 0.45)
+JobInput.Size = UDim2.fromScale(0.9, 0.08); JobInput.Position = UDim2.fromScale(0.05, 0.3)
 JobInput.PlaceholderText = "JobID..."; JobInput.BackgroundColor3 = Color3.fromRGB(25, 25, 30); JobInput.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", JobInput)
 
 local TeleBtn = Instance.new("TextButton", SettingContainer)
-TeleBtn.Size = UDim2.fromScale(0.9, 0.08); TeleBtn.Position = UDim2.fromScale(0.05, 0.55); TeleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 220); TeleBtn.Text = "JOIN BẰNG ID"; TeleBtn.TextColor3 = Color3.new(1, 1, 1); TeleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", TeleBtn)
+TeleBtn.Size = UDim2.fromScale(0.9, 0.08); TeleBtn.Position = UDim2.fromScale(0.05, 0.4); TeleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 220); TeleBtn.Text = "JOIN BẰNG ID"; TeleBtn.TextColor3 = Color3.new(1, 1, 1); TeleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", TeleBtn)
 TeleBtn.MouseButton1Click:Connect(function() if JobInput.Text ~= "" then TeleportService:TeleportToPlaceInstance(game.PlaceId, JobInput.Text, Player) end end)
 
 -- ================= LOGIC AUTO ARMAMENT =================
@@ -250,6 +260,7 @@ task.spawn(function()
                         NoMonsterTimer = NoMonsterTimer + 0.12
                         if NoMonsterTimer >= 10 then 
                             local function ServerHop()
+                                -- QUY TẮC: Tìm server có từ 7-10 người (Thường là server đã chạy được 1.5 - 2 tiếng)
                                 local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
                                 local success, result = pcall(function() return game:HttpGet(url) end)
                                 if success then
@@ -288,5 +299,6 @@ task.spawn(function()
     Player.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
 end)
 
+if Config.BlackScreen then UpdateBlackScreen() end
 pcall(function() RS.Chest.Remotes.Functions.EtcFunction:InvokeServer("EnterTheGame", {}) end)
 ActivateHaki()
