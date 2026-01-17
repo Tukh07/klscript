@@ -45,6 +45,7 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
+local RunService = game:GetService("RunService")
 local Player = Players.LocalPlayer
 
 -- ================= AUTO REJOIN =================
@@ -58,20 +59,23 @@ task.spawn(function()
     end)
 end)
 
--- ================= BLACK SCREEN & LOW GRAPHICS =================
-local BS_Gui = Player.PlayerGui:FindFirstChild("BlackScreen_Sys") or Instance.new("ScreenGui", Player.PlayerGui)
-BS_Gui.Name = "BlackScreen_Sys"; BS_Gui.ResetOnSpawn = false
-local BlackFrame = BS_Gui:FindFirstChild("BlackFrame") or Instance.new("Frame", BS_Gui)
-BlackFrame.Name = "BlackFrame"; BlackFrame.Size = UDim2.new(1, 0, 1, 0); BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0); BlackFrame.ZIndex = -1
-local function UpdateBlackScreen() BlackFrame.Visible = Config.BlackScreen; BlackFrame.BackgroundTransparency = Config.BlackScreen and 0.5 or 1 end
+-- ================= OPTIMIZED LAG & BLACK SCREEN (FIXED) =================
+local function UpdateBlackScreen()
+    -- Sử dụng phương pháp Set3DRenderingEnabled để giảm tải 100% cho GPU
+    RunService:Set3DRenderingEnabled(not Config.BlackScreen)
+end
+
 local function ApplyLowGraphics()
     if not Config.LowGraphics then return end
     pcall(function()
-        game:GetService("Lighting").GlobalShadows = false
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
         for _, v in pairs(game:GetDescendants()) do
-            if v:IsA("Part") or v:IsA("MeshPart") then v.Material = Enum.Material.SmoothPlastic
-            elseif v:IsA("Decal") or v:IsA("Texture") or v:IsA("ParticleEmitter") then v:Destroy() end
+            if v:IsA("Part") or v:IsA("MeshPart") then 
+                v.Material = Enum.Material.SmoothPlastic
+                v.Reflectance = 0
+            elseif v:IsA("Decal") or v:IsA("Texture") or v:IsA("ParticleEmitter") or v:IsA("Trail") then 
+                v:Destroy() 
+            end
         end
     end)
 end
@@ -171,8 +175,8 @@ StatusLabel.Font = Enum.Font.GothamBlack; StatusLabel.TextScaled = true; StatusL
 
 CreateToggle("Farm Sea Event", 0.19, "FarmSeaEvent", SeaContainer)
 CreateToggle("Auto Server Hop", 0.28, "AutoServerHop", SeaContainer)
-CreateToggle("Giảm Lag (Low)", 0.37, "LowGraphics", SeaContainer)
-CreateToggle("Black Screen", 0.46, "BlackScreen", SeaContainer)
+CreateToggle("Giảm Lag (Extreme)", 0.37, "LowGraphics", SeaContainer)
+CreateToggle("Black Screen (GPU Fix)", 0.46, "BlackScreen", SeaContainer)
 
 -- TAB: SETTINGS
 CreateToggle("Auto Skill", 0.02, "AutoSkill", SettingContainer)
